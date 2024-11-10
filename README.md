@@ -37,7 +37,7 @@
    使用 `colcon` 构建工作空间：
 
    ```bash
-   colcon build --packages-select keyboard_publisher
+   colcon build --packages-select keyboard_pub
    ```
 
 4. **设置环境**
