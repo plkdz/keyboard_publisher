@@ -26,7 +26,7 @@
    使用 `rosdep` 安装项目依赖项：
 
    ```bash
-   cd keyboard_pub
+   cd keyboard_publisher
    rosdep update
    rosdep install --from-paths src --ignore-src -r -y
    ```
