@@ -58,6 +58,10 @@ ros2 run keyboard_pub KeyboardStatePublisher
 ## 使用方法
 
 一旦节点启动，它将自动检测并发布键盘事件。请确保节点已启动并监控相关的 ROS 2 主题，以接收并处理键盘按键事件。
+```bash
+cd ~/keyboard_publisher
+ros2 topic echo /keyboard_state
+```
 
 ## 许可证
 
