@@ -26,7 +26,7 @@
    使用 `rosdep` 安装项目依赖项：
 
    ```bash
-   cd keyboard_publisher
+   cd keyboard_pub
    rosdep update
    rosdep install --from-paths src --ignore-src -r -y
    ```
@@ -49,7 +49,7 @@
 
 ## 运行节点
 
-使用以下命令启动 `keyboard_publisher` 节点：
+使用以下命令启动 `KeyboardStatePublisher` 节点：
 
 ```bash
 ros2 run keyboard_pub KeyboardStatePublisher
