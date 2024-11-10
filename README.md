@@ -15,10 +15,9 @@
 
 1. **克隆仓库**
 
-   在工作空间（例如 `~/ros2_ws/src`）中克隆此仓库：
+   直接克隆此仓库：
 
    ```bash
-   cd ~/ros2_ws/src
    git clone https://github.com/plkdz/keyboard_publisher.git
    ```
 
@@ -27,7 +26,7 @@
    使用 `rosdep` 安装项目依赖项：
 
    ```bash
-   cd ..
+   cd keyboard_publisher
    rosdep update
    rosdep install --from-paths src --ignore-src -r -y
    ```
