@@ -27,7 +27,7 @@
    使用 `rosdep` 安装项目依赖项：
 
    ```bash
-   cd ~/ros2_ws
+   cd ..
    rosdep update
    rosdep install --from-paths src --ignore-src -r -y
    ```
@@ -37,7 +37,6 @@
    使用 `colcon` 构建工作空间：
 
    ```bash
-   cd ~/ros2_ws
    colcon build --packages-select keyboard_publisher
    ```
 
@@ -46,7 +45,7 @@
    编译完成后，使用以下命令加载工作空间的环境：
 
    ```bash
-   source ~/ros2_ws/install/setup.bash
+   source ./install/setup.bash
    ```
 
 ## 运行节点
