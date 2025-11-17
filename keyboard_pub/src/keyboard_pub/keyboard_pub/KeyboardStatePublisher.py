@@ -1,73 +1,121 @@
 import rclpy
 from rclpy.node import Node
-from my_msg.msg import KeyboardState  # 确保您的消息包名称正确
-import pygame
-import sys
+from std_msgs.msg import Float32
+import Jetson.GPIO as GPIO
+import time  # 导入 time 模块
 
-class KeyboardStatePublisher(Node):
+class PWMControlNode(Node):
     def __init__(self):
-        super().__init__('keyboard_state_publisher')
-        self.publisher_ = self.create_publisher(KeyboardState, 'keyboard_state', 10)
-        pygame.init()
-        self.screen = pygame.display.set_mode((320, 240))
-        pygame.display.set_caption("ROS 2 Keyboard State Publisher")
-        self.font = pygame.font.Font(None, 24)
-        self.timer_period = 0.05
-        self.timer = self.create_timer(self.timer_period, self.timer_callback)
-        self.held_keys = {key: False for key in 'abcdefghijklmnopqrstuvwxyz'}
+        super().__init__('pwm_control_node')
+
+        # 初始化GPIO
+        self.pwm_pin = 32           # 使用 32 号引脚控制灯
+        self.control_pin = 33       # 用于控制高电平输出的引脚
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)     # 禁用警告
+        GPIO.setup(self.pwm_pin, GPIO.OUT)
+        GPIO.setup(self.control_pin, GPIO.OUT)
+        GPIO.output(self.control_pin, GPIO.HIGH)  # 输出高电平
+        self.get_logger().info("33 high")
 
 
-    def timer_callback(self):
+        #     GPIO.output(self.control_pin, GPIO.HIGH)
+        #     time.sleep(1)
+        #     GPIO.output(self.control_pin, GPIO.LOW)
+        #     time.sleep(1)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                key = pygame.key.name(event.key)  # 获取按下的键的名称
-                if key in self.held_keys:  # 仅当按下的键在字母范围内时才设置为 True
-                    self.held_keys[key] = True
-            elif event.type == pygame.KEYUP:
-                key = pygame.key.name(event.key)
-                if key in self.held_keys:
-                    self.held_keys[key] = False
+        # 设置PWM频率和初始占空比
+        self.pwm = GPIO.PWM(self.pwm_pin, 50)  # 设置频率为50Hz
+        self.pwm.start(0)  # 开始PWM，初始占空比为0
 
-        # 创建并发布 KeyboardState 消息
-        msg = KeyboardState()
-        for letter in self.held_keys:
-            setattr(msg, letter, self.held_keys[letter])
-        self.publisher_.publish(msg)
-        #self.get_logger().info(f'Publishing keyboard state: {self.held_keys}')
+        # 设置最大最小占空比
+        self.min_duty = 2.5#2.5  # 对应1000微秒占空比
+        self.max_duty = 12.5#12.5  # 对应2000微秒占空比
+        self.pwm_duty=7.8
+        self.pwm.ChangeDutyCycle(self.pwm_duty)
+        # 订阅 PWM 占空比的消息
+        self.subscription = self.create_subscription(
+            Float32,
+            'pwm_duty',
+            self.duty_callback,
+            10
+        )
 
-        # 更新 Pygame 显示
-        # 创建一个空列表来存储被按下的键
-        keys_held_down = []
-        for k, v in self.held_keys.items():
-            if v:
-                keys_held_down.append(k)
+    def duty_callback(self, msg):
+        # 从话题中获取占空比并进行限幅处理
+        step=0.2
+        duty = msg.data
+        if duty == 8:
+            self.pwm_duty+=step
+        elif duty == 7:
+            self.pwm_duty-=step
+        elif duty == 1:
+            GPIO.output(self.control_pin, GPIO.HIGH) # 输出高电平
+        elif duty == 0:
+            GPIO.output(self.control_pin, GPIO.LOW)  # 输出低电平
+        elif duty == 9:
+            self.pwm_duty=12.5                       #直接向下 降落下视补光用
+        elif duty == 10:
+            self.pwm_duty=7.8                        #直接向前 
 
-        # 将列表转成字符串，并添加到输出文本中
-        key_text = "Keys held down: " + ", ".join(keys_held_down)
+        if self.pwm_duty < self.min_duty:
+            self.pwm_duty+= step
+        elif self.pwm_duty > self.max_duty:
+            self.pwm_duty-= step
+        # 设置 PWM 占空比
+        self.pwm.ChangeDutyCycle(self.pwm_duty)
+        self.get_logger().info(f"Setting Duty Cycle to: {self.pwm_duty}%")
 
-        self.screen.fill((0, 0, 0))
-        text_surface = self.font.render(key_text, True, (255, 255, 255))
-        text_rect = text_surface.get_rect(center=(160, 120))
-        self.screen.blit(text_surface, text_rect)
-        pygame.display.flip()
+
+
+    def stop_pwm(self):
+        self.pwm.ChangeDutyCycle(12.5) 
+        GPIO.output(self.control_pin, GPIO.LOW) 
+        time.sleep(1) # 延迟 1000 毫秒
+
+        # 防止多次调用，避免重复关闭文件描述符
+        if not hasattr(self, "_pwm_stopped"):
+            self._pwm_stopped = False
+
+        if self._pwm_stopped:
+            self.get_logger().warn("stop_pwm() called but PWM already stopped, ignore.")
+            return
+
+        try:
+
+            # 2. 停止 PWM
+            try:
+                self.pwm.stop()
+            except Exception as e:
+                self.get_logger().warn(f"pwm.stop() failed: {e}")
+
+            # 3. 明确把引脚拉低（此时 PWM 已经停了，不会冲突）
+            try:
+                GPIO.output(self.control_pin, GPIO.LOW)
+            except Exception as e:
+                self.get_logger().warn(f"GPIO.output LOW failed: {e}")
+
+
+        finally:
+            self._pwm_stopped = True
+            self.get_logger().info("PWM stopped and GPIO cleaned up (safe).")
+
 
 def main(args=None):
     rclpy.init(args=args)
-    node = KeyboardStatePublisher()
+    pwm_control_node = PWMControlNode()
+
     try:
-        rclpy.spin(node)
+        rclpy.spin(pwm_control_node)
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
+        pwm_control_node.stop_pwm()
         if rclpy.ok():
             rclpy.shutdown()
-        pygame.quit()
-        print("Shutting down")
+
+        print("Success shutting down")
+
 
 if __name__ == '__main__':
     main()
