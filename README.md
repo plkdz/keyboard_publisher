@@ -33,6 +33,9 @@
 
 3. **编译项目**
 
+sudo apt install python3-pip
+pip3 install pygame
+
    使用 `colcon` 构建工作空间：
 
    ```bash
